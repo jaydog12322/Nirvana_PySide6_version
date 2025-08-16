@@ -1,0 +1,18 @@
+{
+  "mock_fundamentals": {
+    "last_updated": "2025-08-14",
+    "status": "updated"
+  },
+  "tradability_file": {
+    "last_updated": "2025-08-16",
+    "status": "updated"
+  },
+  "index_trend_kospi": {
+    "last_updated": "2025-08-16",
+    "status": "updated"
+  },
+  "index_trend_kosdaq": {
+    "last_updated": "2025-08-16",
+    "status": "updated"
+  }
+}
