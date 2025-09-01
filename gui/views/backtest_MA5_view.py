@@ -97,10 +97,10 @@ class BacktestMA5View(QWidget):
         fixed_rules = [
             "- Previous day must not have 등락률 < -10%",
             "- 종가 must be at least 5% above MA5",
-            "- Last 5 days must not be flat (0% 등락률)",
+            "- No 3+ consecutive flat days (0% 등락률) in past 20 days",
+            "- No severe gap-down (>10%) from previous day's close",
             "- Must dip below MA20 before next trigger allowed",
-            "- If MA5 or MA10 touched before valid entry: trigger is canceled"
-            "- Trigger day: MA20 must not be more than 4% above MA10"
+            "- Trigger day: MA20 must not be more than 4% above MA10",
             "- Trigger day: MA10 must not be more than 5% above MA5"
         ]
         for rule in fixed_rules:
