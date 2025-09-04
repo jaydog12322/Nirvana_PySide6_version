@@ -11,14 +11,11 @@ from openpyxl.chart import LineChart, Reference
 
 from openpyxl.utils import get_column_letter
 
-
 # Read trigger parameters from environment variables, with defaults
 TRIGGER_RATE = float(os.environ.get("TRIGGER_RATE", 10))
 TRIGGER_VOLUME = int(os.environ.get("TRIGGER_VOLUME", 10_000_000_000))
 TRIGGER_FOREIGN = int(os.environ.get("TRIGGER_FOREIGN", 0))
 TRIGGER_INSTITUTION = int(os.environ.get("TRIGGER_INSTITUTION", 0))
-
-
 
 # -----------------------------
 # Config Section
@@ -30,7 +27,6 @@ STRATEGY_ID = 'ma5_support_v1.20.7'
 INPUT_FILE_PATH = 'PATH/TO/Enhanced_000000_ma5support_v1.parquet'
 
 
-
 # -----------------------------
 # Helper Functions
 # -----------------------------
@@ -40,9 +36,11 @@ def calculate_target_price(entry_price, ma5, ma10):
     spread_pct = (ma5 - ma10) / ma10
     return round(entry_price * (1 + spread_pct), 2)
 
+
 def calculate_return(entry_price, exit_price):
     """Return % return between entry and exit prices."""
     return round((exit_price - entry_price) / entry_price * 100, 2)
+
 
 def calculate_slope(series, window=3):
     """Simple slope: linear fit over window days ending at current day."""
@@ -54,9 +52,11 @@ def calculate_slope(series, window=3):
     coeffs = np.polyfit(x, y, 1)
     return round(coeffs[0], 4)  # slope
 
+
 def is_valid_entry(row):
     """Returns True if entry conditions are met. Currently checks for 정배열 only."""
     return row['MA_5'] > row['MA_10'] > row['MA_20']
+
 
 # -----------------------------
 # Main Simulation Logic
@@ -94,7 +94,6 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
         if manual_trigger_date is not None:
             if row['일자'].date() != manual_trigger_date.date():
                 continue
-
 
         if waiting_for_ma20_dip:
             if row['종가'] < row['MA_20']:
@@ -211,7 +210,7 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
 
             entry_row = df.loc[entry_idx]
             entry_date = entry_row['일자']
-            #entry_price = entry_row['MA_5']
+            # entry_price = entry_row['MA_5']
             # ✅ Calculate trading-day gap between trigger and entry (excluding trigger day itself)
             days_took_to_entry = df.loc[(df['일자'] > trigger_date) & (df['일자'] <= entry_date)].shape[0]
 
@@ -223,17 +222,19 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
             if not is_valid_entry(entry_row):
                 continue
 
+            # 🆕 NEW: Extract False_Entry_Checker value from entry row
+            false_entry_checker = entry_row.get('False_Entry_Checker', None)
+
             # === Spreads & 정배열 체크 ===
             정배열_5_10_20_60 = (
-                entry_row['MA_5'] > entry_row['MA_10'] > entry_row['MA_20'] > entry_row['MA_60']
+                    entry_row['MA_5'] > entry_row['MA_10'] > entry_row['MA_20'] > entry_row['MA_60']
             )
             정배열_5_10_20_60_120 = (
-                entry_row['MA_5'] > entry_row['MA_10'] > entry_row['MA_20'] > entry_row['MA_60'] > entry_row['MA_120']
+                    entry_row['MA_5'] > entry_row['MA_10'] > entry_row['MA_20'] > entry_row['MA_60'] > entry_row[
+                'MA_120']
             )
             spread_ma5_10 = round((entry_row['MA_5'] - entry_row['MA_10']) / entry_row['MA_10'] * 100, 2)
             spread_ma5_20 = round((entry_row['MA_5'] - entry_row['MA_20']) / entry_row['MA_20'] * 100, 2)
-
-
 
             # === Exit Logic ===
             ma10_entry = entry_row['MA_10']
@@ -343,7 +344,6 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
             return_pct = calculate_return(entry_price, exit_price)
             risk_to_reward = round(return_pct / spread_ma5_10, 4) if spread_ma5_10 else None
 
-
             results.append({
                 '종목코드': stock_code,
                 '종목명': stock_name,
@@ -370,8 +370,8 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
                 'slope_ma20': slope_ma20,
                 '외국인_순매수': trigger_row.get('외국인_순매수', None),
                 '기관_순매수': trigger_row.get('기관_순매수', None),
-                'entry_id': f"{stock_code}_EN{len(results)+1}",
-                'exit_id': f"{stock_code}_EX{len(results)+1}",
+                'entry_id': f"{stock_code}_EN{len(results) + 1}",
+                'exit_id': f"{stock_code}_EX{len(results) + 1}",
                 'trigger_rate_used': min_rate,
                 'trigger_volume_used': min_volume,
                 'trigger_foreign_used': min_foreign,
@@ -379,6 +379,7 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
                 'risk_to_reward': risk_to_reward,
                 'pre_entry_peak_return_pct': pre_entry_peak_return_pct,
                 'Days_took_to_Entry': days_took_to_entry,
+                'False_Entry_Checker': false_entry_checker,  # 🆕 NEW COLUMN
 
             })
 
@@ -386,6 +387,7 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
             last_exit_idx = exit_idx
 
     return results
+
 
 def generate_daily_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     df = df_results.copy()
@@ -435,6 +437,7 @@ def generate_daily_summary(df_results: pd.DataFrame) -> pd.DataFrame:
 
     return summary
 
+
 def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     df = df_results.copy()
     df['entry_date'] = pd.to_datetime(df['entry_date'])
@@ -455,7 +458,7 @@ def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     # Build table
     monthly = pd.DataFrame({
         'return_pct (sum)': return_sum,
-        'cumulative_return_pct': return_sum.cumsum(),
+        'cumulative_return_pct': return_sum,
         'Win (#)': win_counts,
         'Lose (#)': lose_counts,
         'Win Ratio (Win/Total # Trade)': win_ratios,
@@ -474,6 +477,7 @@ def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     monthly['Average'] = monthly.mean(axis=1)
 
     return monthly
+
 
 def generate_weekly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     df = df_results.copy()
@@ -555,11 +559,10 @@ def main():
     if args.manual_trigger:
         print(f"▶ Manual trigger mode activated: {args.manual_trigger}")
     else:
-        print(f"▶ Parameters: 등락률 ≥ {args.min_rate}, ≤ {args.max_rate}, 거래대금 ≥ {args.min_volume}, ≤ {args.max_volume}, 외국인 ≥ {args.min_foreign}, 기관 ≥ {args.min_institution}")
+        print(
+            f"▶ Parameters: 등락률 ≥ {args.min_rate}, ≤ {args.max_rate}, 거래대금 ≥ {args.min_volume}, ≤ {args.max_volume}, 외국인 ≥ {args.min_foreign}, 기관 ≥ {args.min_institution}")
 
     df_all = pd.read_parquet(input_path)
-
-
 
     # Check required columns
     required_cols = ['일자', '종목코드', '종목명', '고가', '저가', '종가',
@@ -571,7 +574,6 @@ def main():
     all_results = []
 
     if args.manual_trigger:
-
 
         manual_df = pd.read_excel(args.manual_trigger)
         manual_df['날짜'] = pd.to_datetime(manual_df['날짜'])
@@ -627,6 +629,19 @@ def main():
         all_results = df_temp.to_dict(orient="records")
 
     df_results = pd.DataFrame(all_results)
+
+    # 🆕 NEW: Calculate Verified_Return as the very last step
+    def calculate_verified_return(row):
+        false_entry_checker = row.get('False_Entry_Checker')
+        return_pct = row.get('return_pct', 0)
+
+        if false_entry_checker == "Entry_Made":
+            return return_pct
+        else:  # "No_Entry_Made", None, or any other value
+            return 0
+
+    df_results['Verified_Return'] = df_results.apply(calculate_verified_return, axis=1)
+
     # Recalculate held_counts here for use in both summary and global stats
     all_dates = pd.date_range(df_results['entry_date'].min(), df_results['exit_date'].max())
     held_counts = pd.Series(0, index=all_dates)
@@ -719,15 +734,13 @@ def main():
             chart.style = 13
             chart.y_axis.title = "Cumulative %"
             chart.x_axis.title = "Month"
-            chart.add_data(data, titles_from_data=False, from_rows=True)  # ✅ FIXED HERE
+            chart.add_data(data, titles_from_data=False, from_rows=True)
             chart.set_categories(cats)
             chart.series[0].title = SeriesLabel(v="Cumulative Return (%)")
 
             ws.add_chart(chart, f"B{cumret_row_idx + 3}")
         else:
             print("❌ 'cumulative_return_pct' row not found.")
-
-
 
         # 2. Chart: Win Ratio
         winratio_row_idx = find_row_index('Win Ratio (Win/Total # Trade)')
@@ -742,7 +755,7 @@ def main():
             chart2.style = 14
             chart2.y_axis.title = "Win Ratio"
             chart2.x_axis.title = "Month"
-            chart2.add_data(data, titles_from_data=False, from_rows=True)  # ✅ FIXED HERE
+            chart2.add_data(data, titles_from_data=False, from_rows=True)
             chart2.set_categories(cats)
             chart2.series[0].title = SeriesLabel(v="Win Ratio")
 
@@ -768,9 +781,6 @@ def main():
         worksheet.cell(row=start_row + 2, column=2, value=int(max_held_stocks))
 
     print(f"✅ Backtest completed. Results saved to: {output_path}")
-
-
-
 
 
 if __name__ == '__main__':
