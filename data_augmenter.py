@@ -221,18 +221,37 @@ def augment_single_file(
     for col in ["MA5_최대상승률", "MA10_최대상승률", "MDD_진입이후"]:
         if col in selected_ids:
             df[col] = np.nan
+    # === D+1 Open to Close % ===
+    if "D+1 Open to Close %" in selected_ids:
+        df["D+1 Open to Close %"] = (
+                                            (df["종가"].shift(-1) - df["시가"].shift(-1)) / df["시가"].shift(-1)
+                                    ) * 100
 
     print(f"✅ Augmented {stock_code} → {df.columns.tolist()}")
 
-    mandatory_columns = ["일자", "종목명", "종목코드", "시가", "고가", "저가", "종가", "거래량", "외국인소진율"]
+    mandatory_columns = [
+        "일자",
+        "종목명",
+        "종목코드",
+        "시가",
+        "고가",
+        "저가",
+        "종가",
+        "거래량",
+        "외국인소진율",
+    ]
 
-    final_columns = list(dict.fromkeys(
-        mandatory_columns + [
-            col for sel in selected_ids
-            for col in df.columns
-            if col == sel or col.startswith(sel + "_")
-        ]
-    ))
+    final_columns = list(
+        dict.fromkeys(
+            mandatory_columns
+            + [
+                col
+                for sel in selected_ids
+                for col in df.columns
+                if col == sel or col.startswith(sel + "_")
+            ]
+        )
+    )
 
     print(f"[DEBUG] Selected final columns: {final_columns}")
     df = df[final_columns]
