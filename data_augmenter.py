@@ -135,6 +135,14 @@ def augment_single_file(
     if "Low_MA_5" in selected_ids:
         df["Low_MA_5"] = calculate_low_ma_5(df)
 
+    # 🆕 NEW: Calculate False_Entry_Checker (FIXED - NOW IMPLEMENTED)
+    if "False_Entry_Checker" in selected_ids:
+        # First ensure Low_MA_5 exists (calculate it if needed)
+        if "Low_MA_5" not in df.columns:
+            df["Low_MA_5"] = calculate_low_ma_5(df)
+
+        df["False_Entry_Checker"] = calculate_false_entry_checker(df)
+
     if "등락률" in selected_ids:
         df["등락률"] = df["종가"].pct_change().fillna(0) * 100
 
