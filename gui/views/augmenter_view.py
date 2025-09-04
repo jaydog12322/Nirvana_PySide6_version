@@ -9,7 +9,7 @@ import pandas as pd
 from PySide6.QtWidgets import (
     QWidget, QVBoxLayout, QLabel, QPushButton,
     QHBoxLayout, QLineEdit, QCheckBox, QFileDialog,
-    QListWidget, QSplitter, QTableView, QMessageBox
+    QListWidget, QSplitter, QTableView, QMessageBox, QScrollArea
 )
 from PySide6.QtCore import Qt, QAbstractTableModel
 
@@ -17,6 +17,7 @@ from feature_config import FEATURE_ID_LIST, FEATURE_LABELS
 from data_augmenter import generate_enhanced_dataset  # will pass progress_callback later
 
 from PySide6.QtWidgets import QGridLayout
+
 
 class PandasModel(QAbstractTableModel):
     def __init__(self, df: pd.DataFrame):
@@ -71,15 +72,25 @@ class AugmenterView(QWidget):
         strategy_row.addWidget(QLabel("Strategy ID:"))
         strategy_row.addWidget(self.strategy_input)
 
-        # Feature checkboxes
-        feature_layout = QGridLayout()
+        # 🆕 SCROLLABLE Feature checkboxes
+        feature_scroll = QScrollArea()
+        feature_scroll.setWidgetResizable(True)
+        feature_scroll.setHorizontalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        feature_scroll.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
+        feature_scroll.setMaximumHeight(300)  # Limit height to make it scrollable
+
+        feature_widget = QWidget()
+        feature_layout = QGridLayout(feature_widget)
         self.feature_checks = {}
+
         for i, fid in enumerate(FEATURE_ID_LIST):
             cb = QCheckBox(FEATURE_LABELS[fid])
             self.feature_checks[fid] = cb
             row = i // 3  # 3 checkboxes per row
             col = i % 3
             feature_layout.addWidget(cb, row, col)
+
+        feature_scroll.setWidget(feature_widget)
 
         # Start button
         self.start_btn = QPushButton("🚀 Start Augmentation")
@@ -105,14 +116,15 @@ class AugmenterView(QWidget):
         file_splitter.addWidget(self.preview)
         file_splitter.setSizes([200, 400])
 
+        # Add all components to main layout
         layout.addLayout(aug_row)
         layout.addLayout(folder_row)
         layout.addLayout(strategy_row)
-        layout.addLayout(feature_layout)
+        layout.addWidget(QLabel("📋 Select Features (scroll to see all):"))
+        layout.addWidget(feature_scroll)  # 🆕 Now scrollable!
         layout.addWidget(self.start_btn)
         layout.addWidget(QLabel("📄 Files in Folder:"))
         layout.addWidget(file_splitter)
-
 
     def browse_folder(self):
         folder = QFileDialog.getExistingDirectory(self, "Select Folder", str(self.default_folder))

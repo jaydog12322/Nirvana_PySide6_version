@@ -5,6 +5,7 @@ FEATURE_ID_LIST = [
     "등락률",
     "MA_5", "MA_10", "MA_20", "MA_60", "MA_120",
     "Low_MA_5",  # 🆕 NEW FEATURE
+    "False_Entry_Checker",  # 🆕 NEW FEATURE
     "거래대금_MA_5", "거래대금_MA_10", "거래대금_MA_20",
     "거래대금_MA_60", "거래대금_MA_120",
     "MA5_10_차이율",
@@ -28,6 +29,7 @@ FEATURE_LABELS = {
     "MA_60": "60일 이동평균선",
     "MA_120": "120일 이동평균선",
     "Low_MA_5": "5일 이동평균선 (당일 저가 사용)",  # 🆕 NEW FEATURE LABEL
+    "False_Entry_Checker": "진입가능성 검증 (Low_MA_5 vs 저가)",  # 🆕 NEW FEATURE LABEL
     "거래대금_MA_5": "5일 평균 거래대금",
     "거래대금_MA_10": "10일 평균 거래대금",
     "거래대금_MA_20": "20일 평균 거래대금",

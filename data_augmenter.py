@@ -251,3 +251,26 @@ def calculate_low_ma_5(df: pd.DataFrame) -> pd.Series:
             result.iloc[i] = low_ma_5
 
     return result
+
+
+# 🆕 NEW FUNCTION: Calculate False_Entry_Checker
+def calculate_false_entry_checker(df: pd.DataFrame) -> pd.Series:
+    """
+    Calculate False_Entry_Checker: Compare Low_MA_5 with 저가 (Low price)
+    - If Low_MA_5 < 저가: "No_Entry_Made"
+    - If Low_MA_5 >= 저가: "Entry_Made"
+    """
+    result = pd.Series(np.nan, index=df.index)
+
+    for i in range(len(df)):
+        low_ma_5 = df.loc[i, "Low_MA_5"]
+        low_price = df.loc[i, "저가"]
+
+        # Only calculate if both values are available (not NaN)
+        if not pd.isna(low_ma_5) and not pd.isna(low_price):
+            if low_ma_5 < low_price:
+                result.iloc[i] = "No_Entry_Made"
+            else:
+                result.iloc[i] = "Entry_Made"
+
+    return result
