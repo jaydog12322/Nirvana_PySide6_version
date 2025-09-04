@@ -390,6 +390,7 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
 
 
 def generate_daily_summary(df_results: pd.DataFrame) -> pd.DataFrame:
+    """Generate daily summary using Verified_Return instead of return_pct"""
     df = df_results.copy()
     df['entry_date'] = pd.to_datetime(df['entry_date'])
     df['exit_date'] = pd.to_datetime(df['exit_date'])
@@ -404,10 +405,10 @@ def generate_daily_summary(df_results: pd.DataFrame) -> pd.DataFrame:
 
     max_held_stocks = held_counts.max()
 
-    # --- Group by entry date ---
+    # --- Group by entry date - USING Verified_Return ---
     grouped = df.groupby('entry_date')
     summary = pd.DataFrame({
-        'return_pct (sum)': grouped['return_pct'].sum(),
+        'Verified_Return (sum)': grouped['Verified_Return'].sum(),  # CHANGED
         '# of Trades (sum)': grouped.size(),
         'max_gain_pct (average)': grouped['max_gain_pct'].mean(),
         'max_drawdown (average)': grouped['max_drawdown'].mean(),
@@ -439,26 +440,27 @@ def generate_daily_summary(df_results: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
+    """Generate monthly summary using Verified_Return instead of return_pct"""
     df = df_results.copy()
     df['entry_date'] = pd.to_datetime(df['entry_date'])
     df['month'] = df['entry_date'].dt.to_period('M').astype(str)
 
     grouped = df.groupby('month')
 
-    # Base metrics
-    return_sum = grouped['return_pct'].sum()
+    # Base metrics - USING Verified_Return
+    return_sum = grouped['Verified_Return'].sum()  # CHANGED
     risk_avg = grouped['risk_to_reward'].mean()
     trade_counts = grouped.size()
 
-    # Win/Loss counts
-    win_counts = grouped.apply(lambda g: (g['return_pct'] > 0).sum())
-    lose_counts = grouped.apply(lambda g: (g['return_pct'] <= 0).sum())
+    # Win/Loss counts - USING Verified_Return
+    win_counts = grouped.apply(lambda g: (g['Verified_Return'] > 0).sum())  # CHANGED
+    lose_counts = grouped.apply(lambda g: (g['Verified_Return'] <= 0).sum())  # CHANGED
     win_ratios = (win_counts / trade_counts).round(2)
 
     # Build table
     monthly = pd.DataFrame({
-        'return_pct (sum)': return_sum,
-        'cumulative_return_pct': return_sum,
+        'Verified_Return (sum)': return_sum,  # CHANGED
+        'cumulative_verified_return': return_sum,  # CHANGED
         'Win (#)': win_counts,
         'Lose (#)': lose_counts,
         'Win Ratio (Win/Total # Trade)': win_ratios,
@@ -467,7 +469,7 @@ def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
     })
 
     # Add cumulative return after building the DataFrame
-    monthly['cumulative_return_pct'] = monthly['return_pct (sum)'].cumsum()
+    monthly['cumulative_verified_return'] = monthly['Verified_Return (sum)'].cumsum()  # CHANGED
 
     monthly = monthly.round(2)
     monthly = monthly.T  # transpose
@@ -480,22 +482,23 @@ def generate_monthly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
 
 
 def generate_weekly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
+    """Generate weekly summary using Verified_Return instead of return_pct"""
     df = df_results.copy()
     df['entry_date'] = pd.to_datetime(df['entry_date'])
     df['week'] = df['entry_date'].dt.strftime('%G-W%V')  # e.g., '2024-W27'
 
     grouped = df.groupby('week')
 
-    # Compute each metric
-    return_sum = grouped['return_pct'].sum()
-    win_counts = grouped.apply(lambda g: (g['return_pct'] > 0).sum())
-    lose_counts = grouped.apply(lambda g: (g['return_pct'] <= 0).sum())
+    # Compute each metric - USING Verified_Return
+    return_sum = grouped['Verified_Return'].sum()  # CHANGED
+    win_counts = grouped.apply(lambda g: (g['Verified_Return'] > 0).sum())  # CHANGED
+    lose_counts = grouped.apply(lambda g: (g['Verified_Return'] <= 0).sum())  # CHANGED
     total_counts = grouped.size()
     win_ratios = (win_counts / total_counts).round(2)
 
     # Build final DataFrame
     summary = pd.DataFrame({
-        'return_pct (sum)': return_sum,
+        'Verified_Return (sum)': return_sum,  # CHANGED
         'Win (#)': win_counts,
         'Lose (#)': lose_counts,
         'Win Ratio (Win#/# of Trades)': win_ratios,
@@ -506,9 +509,10 @@ def generate_weekly_summary(df_results: pd.DataFrame) -> pd.DataFrame:
 
 
 def calculate_max_streaks(df: pd.DataFrame) -> tuple:
+    """Calculate max streaks using Verified_Return instead of return_pct"""
     df = df.copy()
     df['entry_date'] = pd.to_datetime(df['entry_date'])
-    daily_returns = df.groupby('entry_date')['return_pct'].sum().sort_index()
+    daily_returns = df.groupby('entry_date')['Verified_Return'].sum().sort_index()  # CHANGED
 
     win_streak = max_streak = 0
     max_win = 0
@@ -655,7 +659,6 @@ def main():
     # Generate summary tables
     daily_summary_df = generate_daily_summary(df_results)
     monthly_summary_df = generate_monthly_summary(df_results)
-
     weekly_summary_df = generate_weekly_summary(df_results)
 
     with pd.ExcelWriter(output_path, engine='openpyxl') as writer:
@@ -696,7 +699,7 @@ def main():
         # Insert chart into the sheet (e.g., cell G2)
         ws_summary3.add_chart(chart, "G2")
 
-        # --- Chart generation (fully fixed) ---
+        # --- Chart generation (fully updated for Verified_Return) ---
         ws = writer.sheets['Summary 2']
 
         # Get valid month columns (exclude 'Total', 'Average', None)
@@ -721,8 +724,8 @@ def main():
                     return row
             return None
 
-        # 1. Chart: cumulative_return_pct
-        cumret_row_idx = find_row_index('cumulative_return_pct')
+        # 1. Chart: cumulative_verified_return (UPDATED)
+        cumret_row_idx = find_row_index('cumulative_verified_return')
         if cumret_row_idx:
             data = Reference(ws, min_col=min_col, max_col=max_col,
                              min_row=cumret_row_idx, max_row=cumret_row_idx)
@@ -730,19 +733,19 @@ def main():
                              min_row=1, max_row=1)
 
             chart = LineChart()
-            chart.title = "cumulative_return_pct"
+            chart.title = "Cumulative Verified Return"  # UPDATED
             chart.style = 13
             chart.y_axis.title = "Cumulative %"
             chart.x_axis.title = "Month"
             chart.add_data(data, titles_from_data=False, from_rows=True)
             chart.set_categories(cats)
-            chart.series[0].title = SeriesLabel(v="Cumulative Return (%)")
+            chart.series[0].title = SeriesLabel(v="Cumulative Verified Return (%)")  # UPDATED
 
             ws.add_chart(chart, f"B{cumret_row_idx + 3}")
         else:
-            print("❌ 'cumulative_return_pct' row not found.")
+            print("❌ 'cumulative_verified_return' row not found.")
 
-        # 2. Chart: Win Ratio
+        # 2. Chart: Win Ratio (unchanged)
         winratio_row_idx = find_row_index('Win Ratio (Win/Total # Trade)')
         if winratio_row_idx:
             data = Reference(ws, min_col=min_col, max_col=max_col,
