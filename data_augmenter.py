@@ -8,6 +8,7 @@ from glob import glob
 
 from feature_config import FEATURE_ID_LIST, FEATURE_LABELS
 
+
 def find_latest_common_stock_file(base_dir="Perm_Data/Tradability"):
     search_path = os.path.join(base_dir, "전종목_우선주제외_List_*.xlsx")
     candidates = glob(search_path)
@@ -21,6 +22,7 @@ FOREIGN_PARQUET_FOLDER = "외국인_순매수_Parquet"
 INSTITUTION_PARQUET_FOLDER = "기관_순매수_Parquet"
 ENHANCED_OUTPUT_BASE = "Enhanced_Data"
 
+
 # ======== Load 보통주 종목 정보 ========
 def load_common_stock_info() -> pd.DataFrame:
     perm_path = find_latest_common_stock_file()
@@ -29,14 +31,15 @@ def load_common_stock_info() -> pd.DataFrame:
     df["보통주여부"] = True
     return df
 
+
 # ======== MAIN FUNCTION ========
 def generate_enhanced_dataset(
-    input_folder: str,
-    output_folder: str,
-    strategy_id: str,
-    selected_features: List[str],
-    save_combined: bool = True,
-    progress_callback = None
+        input_folder: str,
+        output_folder: str,
+        strategy_id: str,
+        selected_features: List[str],
+        save_combined: bool = True,
+        progress_callback=None
 ):
     common_df = load_common_stock_info()
     종목명_to_코드 = dict(zip(common_df["종목명"], common_df["종목코드"]))
@@ -88,12 +91,13 @@ def generate_enhanced_dataset(
         )
         print(f"✅ Combined file saved: {strategy_id}")
 
+
 # ======== AUGMENTATION ========
 def augment_single_file(
-    df: pd.DataFrame,
-    stock_code: str,
-    종목명_to_코드: Dict[str, str],
-    selected_features: List[str]
+        df: pd.DataFrame,
+        stock_code: str,
+        종목명_to_코드: Dict[str, str],
+        selected_features: List[str]
 ) -> pd.DataFrame:
     label_to_id = dict(zip(FEATURE_LABELS, FEATURE_ID_LIST))
     selected_ids = [label_to_id[label] for label in selected_features if label in label_to_id]
@@ -127,6 +131,10 @@ def augment_single_file(
         if any(sel.startswith(col) or sel.endswith(col) for sel in selected_ids):
             df[col] = df["종가"].rolling(window=period).mean()
 
+    # 🆕 NEW: Calculate Low_MA_5
+    if "Low_MA_5" in selected_ids:
+        df["Low_MA_5"] = calculate_low_ma_5(df)
+
     if "등락률" in selected_ids:
         df["등락률"] = df["종가"].pct_change().fillna(0) * 100
 
@@ -153,7 +161,7 @@ def augment_single_file(
         prev_ma5 = df["MA_5"].shift(1)
         prev_ma20 = df["MA_20"].shift(1)
         df["골든크로스_MA5_20"] = (
-            (df["MA_5"] > df["MA_20"]) & (prev_ma5 <= prev_ma20)
+                (df["MA_5"] > df["MA_20"]) & (prev_ma5 <= prev_ma20)
         )
 
     if "외국인_순매수" in selected_ids or "기관_순매수" in selected_ids:
@@ -184,14 +192,14 @@ def augment_single_file(
         if "외국인_순매수" in selected_ids and not foreign_df.empty:
             df = df.merge(
                 foreign_df[["종목코드", "일자", "거래대금_순매수"]]
-                    .rename(columns={"거래대금_순매수": "외국인_순매수"}),
+                .rename(columns={"거래대금_순매수": "외국인_순매수"}),
                 on=["종목코드", "일자"], how="left"
             )
 
         if "기관_순매수" in selected_ids and not inst_df.empty:
             df = df.merge(
                 inst_df[["종목코드", "일자", "거래대금_순매수"]]
-                    .rename(columns={"거래대금_순매수": "기관_순매수"}),
+                .rename(columns={"거래대금_순매수": "기관_순매수"}),
                 on=["종목코드", "일자"], how="left"
             )
 
@@ -222,3 +230,24 @@ def augment_single_file(
     df = df[final_columns]
 
     return df
+
+
+# 🆕 NEW FUNCTION: Calculate Low_MA_5
+def calculate_low_ma_5(df: pd.DataFrame) -> pd.Series:
+    """
+    Calculate Low_MA_5: (Close[D-4] + Close[D-3] + Close[D-2] + Close[D-1] + Low[D]) / 5
+    """
+    result = pd.Series(np.nan, index=df.index)
+
+    for i in range(4, len(df)):  # Start from index 4 (5th row) to have 4 previous days
+        # Get previous 4 days' closing prices
+        prev_4_closes = df.loc[i - 4:i - 1, "종가"].values  # [D-4, D-3, D-2, D-1]
+        # Get current day's low price
+        current_low = df.loc[i, "저가"]
+
+        # Calculate: (sum of prev 4 closes + current low) / 5
+        if len(prev_4_closes) == 4 and not np.isnan(current_low):
+            low_ma_5 = (prev_4_closes.sum() + current_low) / 5
+            result.iloc[i] = low_ma_5
+
+    return result
