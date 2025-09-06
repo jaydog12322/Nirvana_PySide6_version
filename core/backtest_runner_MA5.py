@@ -344,6 +344,16 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
             return_pct = calculate_return(entry_price, exit_price)
             risk_to_reward = round(return_pct / spread_ma5_10, 4) if spread_ma5_10 else None
 
+            # === D+1 Open to Close % ===
+            next_day_open_to_close_pct = None
+            if entry_idx + 1 < len(df):
+                next_open = df.loc[entry_idx + 1, '시가']
+                next_close = df.loc[entry_idx + 1, '종가']
+                if pd.notna(next_open) and next_open != 0:
+                    next_day_open_to_close_pct = round(
+                        (next_close - next_open) / next_open * 100, 2
+                    )
+
             results.append({
                 '종목코드': stock_code,
                 '종목명': stock_name,
@@ -380,7 +390,7 @@ def run_backtest(df: pd.DataFrame, stock_code: str, stock_name: str,
                 'pre_entry_peak_return_pct': pre_entry_peak_return_pct,
                 'Days_took_to_Entry': days_took_to_entry,
                 'False_Entry_Checker': false_entry_checker,  # 🆕 NEW COLUMN
-
+                'D+1 Open to Close %': next_day_open_to_close_pct,
             })
 
             waiting_for_ma20_dip = True
